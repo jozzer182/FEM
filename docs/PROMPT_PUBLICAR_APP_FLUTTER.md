@@ -241,11 +241,95 @@ API_ENDPOINT_2=https://your-other-api.com/exec
 | Olvidar modificar `pubspec.yaml` | Agregar `.env` a assets |
 | No cargar dotenv antes de Firebase | Agregar `await dotenv.load()` al inicio de main() |
 | Dejar firebase_options.dart con credenciales | Modificar para usar EnvConfig |
+| **GitHub CLI (`gh`) no reconocido** | Ver sección "Problema con GitHub CLI" abajo |
+
+---
+
+## 🐛 Problema con GitHub CLI (Windows)
+
+### Síntoma
+Al ejecutar `gh repo create`, aparece el error:
+```
+gh: The term 'gh' is not recognized as a name of a cmdlet, function, script 
+file, or executable program.
+```
+
+### Causa
+GitHub CLI está instalado pero **no está en el PATH** de la sesión actual de terminal (común en terminales integradas de IDEs como Cursor/VS Code).
+
+### Solución 1: Usar ruta completa (Recomendado)
+
+```powershell
+# Verificar que gh está instalado
+Get-ChildItem -Path "C:\Program Files" -Recurse -Filter "gh.exe" -ErrorAction SilentlyContinue | Select-Object -First 1
+
+# Usar ruta completa para todos los comandos gh
+& "C:\Program Files\GitHub CLI\gh.exe" auth status
+& "C:\Program Files\GitHub CLI\gh.exe" repo create NOMBRE_REPO --public --source=. --remote=origin
+```
+
+### Solución 2: Refrescar PATH en la sesión actual
+
+```powershell
+# Refrescar variables de entorno
+$env:Path = [System.Environment]::GetEnvironmentVariable("Path","Machine") + ";" + [System.Environment]::GetEnvironmentVariable("Path","User")
+
+# Ahora intentar gh
+gh --version
+```
+
+### Solución 3: Agregar al PATH permanentemente
+
+```powershell
+# Agregar GitHub CLI al PATH del usuario
+$ghPath = "C:\Program Files\GitHub CLI"
+$currentPath = [Environment]::GetEnvironmentVariable("Path", "User")
+if ($currentPath -notlike "*$ghPath*") {
+    [Environment]::SetEnvironmentVariable("Path", "$currentPath;$ghPath", "User")
+}
+# Reiniciar la terminal después de esto
+```
+
+### Solución 4: Reinstalar con winget
+
+```powershell
+winget install --id GitHub.cli -e --accept-source-agreements --accept-package-agreements
+# Reiniciar la terminal
+```
+
+### Verificar autenticación
+
+```powershell
+# Con ruta completa
+& "C:\Program Files\GitHub CLI\gh.exe" auth status
+
+# Debería mostrar algo como:
+# github.com
+#   ✓ Logged in to github.com account TU_USUARIO (keyring)
+#   - Active account: true
+
+# Si no está autenticado:
+& "C:\Program Files\GitHub CLI\gh.exe" auth login
+```
+
+### Comandos gh con ruta completa (referencia)
+
+```powershell
+# Crear repositorio
+& "C:\Program Files\GitHub CLI\gh.exe" repo create NOMBRE --public --source=. --remote=origin
+
+# Ver repositorio en navegador
+& "C:\Program Files\GitHub CLI\gh.exe" repo view USUARIO/REPO --web
+
+# Verificar archivos en repo remoto
+& "C:\Program Files\GitHub CLI\gh.exe" api repos/USUARIO/REPO/git/trees/main?recursive=1 --jq '.tree[].path'
+```
 
 ---
 
 ## ✅ Checklist Final
 
+### Preparación del código
 - [ ] `flutter_dotenv` agregado a `pubspec.yaml`
 - [ ] `.env` agregado a assets en `pubspec.yaml`
 - [ ] `.env` creado con credenciales reales
@@ -254,11 +338,23 @@ API_ENDPOINT_2=https://your-other-api.com/exec
 - [ ] `firebase_options.dart` modificado para usar EnvConfig
 - [ ] Todos los archivos con URLs/APIs modificados
 - [ ] `main.dart` carga dotenv antes de Firebase
+
+### Configuración de Git
 - [ ] `.gitignore` actualizado
 - [ ] Archivos `.example` creados para Firebase
 - [ ] `.git/` eliminado y repositorio reiniciado
 - [ ] `README.md` profesional creado
-- [ ] Verificaciones de seguridad ejecutadas
+
+### Verificación de seguridad
+- [ ] `git ls-files .env` retorna vacío
+- [ ] `git ls-files android/app/google-services.json` retorna vacío
+- [ ] `firebase_options.dart` no contiene "AIza" ni API keys hardcodeadas
+- [ ] Archivos `.example` están incluidos en git
+
+### GitHub CLI y Push
+- [ ] GitHub CLI funciona (`gh --version` o usar ruta completa)
+- [ ] Autenticado en GitHub (`gh auth status`)
+- [ ] Repositorio creado sin `--push` automático
 - [ ] Push manual realizado después de verificar
 
 ---
